@@ -162,6 +162,24 @@ plot(country_won) # Argentinian and South African horses tend to win a higher pe
 ```{r}
 logistic1 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + distance, data = hk, family = "binomial")
 summary(logistic1)
+
+logistic2 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + horse_age + declared_weight, data = hk, family = "binomial")
+summary(logistic2)
+
+logistic3 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 +  horse_country, data = hk, family = "binomial")
+summary(logistic3)
+
+logistic4 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 +  horse_type, data = hk, family = "binomial")
+summary(logistic4)
+
+logistic5 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 +  horse_ratings, data = hk, family = "binomial")
+summary(logistic5)
+
+logistic6 <- glm(won ~ place_odds +  distance + horse_age + declared_weight + horse_country + horse_type, data = hk, family = "binomial")
+summary(logistic6)
+
+logistic7 <- glm(won ~ distance + horse_age + declared_weight + horse_country + horse_type, data = hk, family = "binomial")
+summary(logistic7)
 ```
 
 
