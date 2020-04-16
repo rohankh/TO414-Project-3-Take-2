@@ -24,7 +24,7 @@ hk <- read.csv("hk.csv")
 ```{r}
 hk$won <- as.logical(hk$won)
 
-hk$date <- NULL
+#hk$date <- NULL
 
 hk$position_sec5 <- NULL
 hk$position_sec6 <- NULL
@@ -105,6 +105,10 @@ hk$going<-ifelse(hk$going=="FAST",0,
                                                     ifelse(hk$going=="WET FAST",6,
                                                            ifelse(hk$going=="WET SLOW",7,
                                                                   ifelse(hk$going=="YIELDING",8,9)))))))))
+
+library(lubridate)
+hk$date<-ymd(hk$date)
+hk$month<-month(hk$date)
 ```
 
 For certain columns (horse_country, horst_type, venue, config, and going) with many factors, we combined certain values to make the data more manageable.
