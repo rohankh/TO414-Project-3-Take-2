@@ -1,0 +1,532 @@
+---
+title: "Predicting the Probability that a Horse Wins a Race in Hong Kong"
+author: "Matthew Lewis"
+date: "4/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+--
+## Data Import
+
+```{r}
+hk <- read.csv("hk.csv")
+```
+
+
+--
+## Data Cleaning and Exploration
+
+```{r}
+hk$won <- as.logical(hk$won)
+
+hk$date <- NULL
+
+hk$position_sec5 <- NULL
+hk$position_sec6 <- NULL
+
+hk$behind_sec5 <- NULL
+hk$behind_sec6 <- NULL
+
+hk$time5.x <- NULL
+hk$time6.x <- NULL
+
+hk$sec_time5 <- NULL
+hk$sec_time6 <- NULL
+hk$sec_time7 <- NULL
+
+hk$time5.y <- NULL
+hk$time6.y <- NULL
+
+hk$time7 <- NULL
+
+hk$place_combination4 <- NULL
+
+hk$place_dividend4 <- NULL
+
+hk$win_combination2 <- NULL
+hk$win_dividend2 <- NULL
+
+hk$horse_gear<-NULL
+hk$position_sec4<-NULL
+hk$behind_sec4<-NULL
+hk$time4.x<-NULL
+hk$time4.y<-NULL
+hk$sec_time4<-NULL
+hk$place_dividend3<-NULL
+hk$place_combination3<-NULL
+
+hk$horse_ratings <- as.factor(hk$horse_ratings)
+hk$place_odds[is.na(hk$place_odds)] <- mean(hk$place_odds, na.rm = TRUE)
+hk$prize[is.na(hk$prize)] <- mean(hk$prize, na.rm = TRUE)
+```
+
+Here, we are cleaning our data to NULL out any mostly empty columns that will be insifnificant in our analysis. We also imputed certain columns that we found important, but had a lot of NA values. To do this, we took the mean of each column, and if a row had an NA, substituted it with the mean value.
+
+```{r}
+movetolast <- function(data, move) {
+  data[c(setdiff(names(data), move), move)]
+}
+
+hk <- movetolast(hk, c("won"))
+```
+
+By moving our response variable (won) to the end of our data frame, we will be able to work with the data better.
+
+```{r}
+sapply(hk, function(x) sum(is.na(x)))
+```
+
+Checking to make sure that we properly imputed each column.
+
+```{r}
+hk$horse_country<-ifelse(hk$horse_country=="AUS",0,
+                         ifelse(hk$horse_country=="NZ",1,
+                                ifelse(hk$horse_country=="IRE",2,
+                                       ifelse(hk$horse_country=="GB",3,
+                                              ifelse(hk$horse_country=="USA",4,5)))))
+hk$horse_type<-ifelse(hk$horse_type=="Gelding",0,1)
+hk$venue<-as.numeric(hk$venue)
+hk$config<-ifelse(hk$config=="A",0,
+                  ifelse(hk$config=="A+3",1,
+                         ifelse(hk$config=="B",2,
+                                ifelse(hk$config=="B+2",3,
+                                       ifelse(hk$config=="C",4,5)))))
+hk$going<-ifelse(hk$going=="FAST",0,
+                 ifelse(hk$going=="GOOD",1,
+                        ifelse(hk$going=="GOOD TO FIRM",2,
+                               ifelse(hk$going=="GOOD TO YIELDING",3,
+                                      ifelse(hk$going=="SLOW",4,
+                                             ifelse(hk$going=="SOFT",5,
+                                                    ifelse(hk$going=="WET FAST",6,
+                                                           ifelse(hk$going=="WET SLOW",7,
+                                                                  ifelse(hk$going=="YIELDING",8,9)))))))))
+```
+
+For certain columns (horse_country, horst_type, venue, config, and going) with many factors, we combined certain values to make the data more manageable.
+
+```{r}
+str(hk)
+summary(hk)
+```
+
+
+--
+## Data Visualization
+
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+
+
+ggplot(hk, aes(x=horse_age, y=place_odds)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+
+
+
+
+
+
+
+```{r}
+
+ggplot(hk, aes(x = actual_weight)) + stat_density()
+```
+
+
+Here we can see the relationship between place odds and the age of the horse. It is clear that the higher the higher the age the lower odds it has. 
+
+```{r}
+ggplot(hk, aes(horse_age, place_odds)) +
+  geom_jitter(aes(color = horse_age, size = 0.5))
+```
+
+
+
+Another interssting relationship is between place odds and horse type. Most of the horses are Geldings. And it is logical to see that if the is horse is Gelding the place odds are higher. 
+
+```{r}
+ggplot(hk, aes(horse_type, place_odds)) +
+  geom_jitter(aes(color = horse_type, size = 0.5))
+```
+
+
+Relationship between country and place_odds.
+The highest place odds have horses from Ireland, Australia and New Zeland. 
+
+
+```{r}
+ggplot(hk, aes(horse_country, place_odds)) +
+  geom_jitter(aes(color = horse_country, size = 0.3))
+```
+
+
+
+
+Countries represented in Hong Kong horse races. 
+
+
+```{r}
+table(hk$horse_country)
+library(maptools)
+    data(wrld_simpl)
+    myCountries = wrld_simpl@data$NAME %in% c("Australia", "United Kingdom", "United States", "Netherlands", "New Zealand","South Africa","Argentina","France","Japan","India","Brazil","Canada","Germany","Spain","Zimbabwe","Italy","Greece")
+    plot(wrld_simpl, col = c(gray(.90), "red")[myCountries+1],main="Countries represented")
+```
+
+
+
+
+
+```{r}
+library(ggplot2)
+
+type_plot <- ggplot(data = hk, aes(x = result, y = lengths_behind))
+type_plot + geom_jitter(alpha = 1)
+```
+
+```{r}
+plot(x = hk$actual_weight, y = hk$result, main = "Result vs. Weight", xlab = "Weight",  ylab = "Result")
+
+result_weight <- round(sort(tapply(hk$result, hk$actual_weight, mean, na.rm = TRUE), TRUE), 3)
+as.matrix(result_weight)
+```
+
+```{r}
+plot(x = hk$position_sec1, y = hk$result, main = "Result vs. Start", xlab = "Start",  ylab = "Result")
+
+result_start <- round(sort(tapply(hk$result, hk$position_sec1, mean, na.rm = TRUE), TRUE), 3)
+as.matrix(result_start)
+```
+
+```{r}
+age_won <- table(hk$horse_age, hk$won)
+age_won
+plot(age_won) # 4 year old horses tend to win more on average than other ages
+
+pos1_won <- table(hk$position_sec1, hk$won)
+pos1_won
+plot(pos1_won) # horses in the lead at first tend to win most races
+
+pos2_won <- table(hk$position_sec2, hk$won)
+pos2_won
+plot(pos2_won)
+
+pos3_won <- table(hk$position_sec3, hk$won)
+pos3_won
+plot(pos3_won) # by the third turn, there is a greater than 50% chance that the lead horse wins the race
+
+country_won <- table(hk$horse_country, hk$won)
+country_won
+plot(country_won) # Argentinian and South African horses tend to win a higher percentage of races than other countries
+```
+
+Above is some visualizations of our data with comments explaining the results. No data graphics were particularly surprising, so we are going to weigh the results of our predictive models more heavily.
+
+--
+## Logistic Regression Models
+
+### Logistic Regression
+```{r}
+logistic1 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + distance, data = hk, family = "binomial")
+summary(logistic1)
+
+logistic2 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + horse_age + declared_weight, data = hk, family = "binomial")
+summary(logistic2)
+
+logistic3 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 +  horse_country, data = hk, family = "binomial")
+summary(logistic3)
+
+logistic4 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 +  horse_type, data = hk, family = "binomial")
+summary(logistic4)
+
+logistic5 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 +  horse_ratings, data = hk, family = "binomial")
+summary(logistic5)
+
+logistic6 <- glm(won ~ place_odds +  distance + horse_age + declared_weight + horse_country + horse_type, data = hk, family = "binomial")
+summary(logistic6)
+
+logistic7 <- glm(won ~ distance + horse_age + declared_weight + horse_country + horse_type, data = hk, family = "binomial")
+summary(logistic7)
+```
+
+RYAN TO WRITE ABOUT REGRESSION MODELS.
+
+--
+## Predictive Models
+
+### Normalize and Structure Data
+```{r}
+# normalizing data
+hk_norm <- as.data.frame(model.matrix(~.-1, hk))
+
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+```
+
+```{r}
+hk_norm <- as.data.frame(lapply(hk_norm[1:78], normalize))
+```
+
+```{r}
+table(hk_norm$won)
+```
+
+```{r}
+# separate data into test and train
+train_x <- hk_norm[1:60000, -ncol(hk_norm)]
+test_x <- hk_norm[60001:79447, -ncol(hk_norm)]
+train_y <- hk_norm[1:60000, ncol(hk_norm)]
+test_y <- hk_norm[60001:79447, ncol(hk_norm)]
+
+alpha_train <- hk_norm[1:60000, ]
+alpha_test <- hk_norm[60001:79447, ]
+```
+
+Above, we normalized our datas to make all values fall between 0 and 1. We then divided our normalized dataset into test and train sets to be used by our models. We decided not to randomize our data because each race consisted of multiple horses that all raced together. We found it important to keep horse runs contained within their races to achieve the best possible results. This did cause most of our train data to be from earlier years, but in our analysis, we found that the year of the race did not matter in determininng a winner.
+
+-
+### kNN
+```{r}
+library(class)
+hk_norm_pred <- knn(train = train_x, test = test_x, cl = train_y, k = 7) # no missing values are allowed
+library(gmodels)
+CrossTable(x = test_y, y = hk_norm_pred, prop.chisq = FALSE)
+```
+
+```{r}
+library(caret)
+confusionMatrix(factor(hk_norm_pred), factor(test_y))
+```
+
+We conducted our kNN model with a k of 7 and found it to have an accuracy of 0.9328 and Kappa of 0.3412.
+
+#### Improving kNN
+```{r}
+library(C50)
+
+knn_boost10 <- C5.0(alpha_train[-1], as.factor(alpha_train$won),
+                       trials = 10)
+knn_boost10
+summary(knn_boost10)
+
+knn_boost_pred10 <- predict(knn_boost10, alpha_test)
+CrossTable(alpha_test$won, knn_boost_pred10,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+
+## Making some mistakes more costly than others
+# create a cost matrix
+knn_error_cost <- matrix(c(0, 1, 4, 0), nrow = 2)
+knn_error_cost
+
+# apply the cost matrix to the tree
+knn_cost <- C5.0(alpha_train[-1], as.factor(alpha_train$won),
+                          costs = knn_error_cost)
+knn_cost_pred <- predict(knn_cost, alpha_test)
+
+CrossTable(alpha_test$won, knn_cost_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+As we had done in class, we boosted our kNN model with 10 and 100 iterations. This allowed us to achieve a prediction accurace rate of 100%.
+
+-
+### SVM
+```{r}
+# normalizing data
+hk_norm_svm <- as.data.frame(model.matrix(~.-1, hk))
+
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+```
+
+```{r}
+hk_norm_svm <- as.data.frame(lapply(hk_norm_svm[1:78], normalize))
+```
+
+```{r}
+svm_train <- hk_norm_svm[1:60000, ]
+svm_test <- hk_norm_svm[60001:79447, ]
+
+library(kernlab)
+
+hk_classifier <- ksvm(wonTRUE ~ ., data = svm_train, kernel = "rbfdot")
+hk_predict <- predict(hk_classifier, svm_test)
+
+svm_test$wonTRUE <- as.matrix(as.factor(svm_test$wonTRUE))
+hk_predict <- ifelse(hk_predict < 0.22, 0, 1)
+
+table(hk_predict, svm_test$wonTRUE)
+
+hk_predict = factor(hk_predict, levels = c(0, 1))
+svm_test$wonTRUE = factor(svm_test$wonTRUE, levels = c(0, 1))
+
+confusionMatrix(hk_predict, svm_test$wonTRUE)
+```
+
+We found that using the SVM kernel rbfdot was most accurate for our model resulting in 0.925 accuracy, but a Kappa lower than our kNN at 0.107.
+
+#### Improving SVM
+```{r}
+library(C50)
+
+svm_boost10 <- C5.0(svm_train[-1], as.factor(svm_train$wonTRUE),
+                       trials = 10)
+svm_boost10
+summary(svm_boost10)
+
+svm_boost_pred10 <- predict(svm_boost10, svm_test)
+CrossTable(svm_test$won, svm_boost_pred10,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+
+## Making some mistakes more costly than others
+# create a cost matrix
+svm_error_cost <- matrix(c(0, 1, 4, 0), nrow = 2)
+svm_error_cost
+
+# apply the cost matrix to the tree
+svm_cost <- C5.0(svm_train[-1], as.factor(svm_train$won),
+                          costs = svm_error_cost)
+svm_cost_pred <- predict(svm_cost, svm_test)
+
+CrossTable(svm_test$won, svm_cost_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+As we had done in class, we boosted our SVM model with 10 and 100 iterations. This allowed us to achieve a prediction accurace rate of 100%.
+
+-
+### ANN
+```{r}
+library(neuralnet)
+
+hk_ann <- hk
+
+# normalizing data
+hk_ann <- as.data.frame(model.matrix(~.-1, hk_ann))
+
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x)))
+}
+hk_ann <- as.data.frame(lapply(hk_ann[1:ncol(hk_ann)], normalize))
+
+hk_train_ann <- hk_ann[1:60000, ]
+hk_test_ann <- hk_ann[60001:79447, ]
+```
+
+```{r}
+hk_model_ann <- neuralnet(formula = wonTRUE ~ ., data = hk_train_ann)
+
+plot(hk_model_ann)
+```
+
+```{r}
+model_results <- compute(hk_model_ann, hk_test_ann)
+predicted_won <- model_results$net.result
+summary(predicted_won)
+cor(predicted_won, hk_test_ann$wonTRUE)
+binary_ps <- ifelse(predicted_won > 0.062, 1, 0)
+
+library(caret)
+confusionMatrix(as.factor(binary_ps), as.factor(hk_test_ann$wonTRUE))
+```
+
+With just one node, our ANN model had a 100% accuracy rate.
+
+```{r}
+hk_model_ann2 <- neuralnet(formula = wonTRUE ~ ., data = hk_train_ann, hidden = 3, threshold = 0.2)
+```
+
+```{r}
+# plot the network
+plot(hk_model_ann2)
+```
+
+```{r}
+# evaluate the results as we did before
+model_results2 <- compute(hk_model_ann2, hk_test_ann)
+predicted_won2 <- model_results2$net.result
+summary(predicted_won2)
+cor(predicted_won2, hk_test_ann$wonTRUE)
+binary_ps2 <- ifelse(predicted_won2 > 0.062, 1, 0)
+
+library(caret)
+confusionMatrix(as.factor(binary_ps2), as.factor(hk_test_ann$wonTRUE))
+```
+
+After adding 2 more nodes to have 3 total, we found our accuracy rate to still be 100%.
+
+#### Improving ANN
+```{r}
+library(C50)
+
+ann_boost10 <- C5.0(hk_train_ann[-1], as.factor(hk_train_ann$wonTRUE),
+                       trials = 10)
+ann_boost10
+summary(ann_boost10)
+
+ann_boost_pred10 <- predict(ann_boost10, hk_test_ann)
+CrossTable(hk_test_ann$wonTRUE, ann_boost_pred10,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+
+## Making some mistakes more costly than others
+# create a cost matrix
+ann_error_cost <- matrix(c(0, 1, 4, 0), nrow = 2)
+ann_error_cost
+
+# apply the cost matrix to the tree
+ann_cost <- C5.0(hk_train_ann[-1], as.factor(hk_train_ann$wonTRUE),
+                          costs = ann_error_cost)
+ann_cost_pred <- predict(ann_cost, hk_test_ann)
+
+CrossTable(hk_test_ann$wonTRUE, ann_cost_pred,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+As we had done in class, we boosted our ANN model with 10 and 100 iterations. This allowed us to achieve a prediction accurace rate of 100%.
+
+-
+### Combined Model
+```{r}
+# combining data
+combined_hk <- data.frame(as.numeric(hk_norm_pred), as.numeric(hk_predict), as.numeric(predicted_won2), hk_test_ann$wonTRUE)
+combined_hk$weighted <- ifelse(as.numeric(hk_norm_pred) + as.numeric(hk_predict) + as.numeric(predicted_won2) > 4, 1, 0)
+
+combined_hk$weighted = factor(combined_hk$weighted, levels = c(0, 1))
+combined_hk$hk_test_ann.wonTRUE = factor(combined_hk$hk_test_ann.wonTRUE, levels = c(0, 1))
+
+equality_checker <- combined_hk$weighted == combined_hk$hk_test_ann.wonTRUE
+table(equality_checker)
+prop.table(table(equality_checker))
+
+confusionMatrix(as.factor(combined_hk$weighted), as.factor(hk_test_ann$wonTRUE))
+CrossTable(hk_test_ann$wonTRUE, combined_hk$weighted,
+           prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE,
+           dnn = c('actual won', 'predicted won'))
+```
+
+We decided to combine our kNN, SVM, and ANN models into one final predictive model. Interestingly, this model had a poorer accuracy and Kappa, 0.9284 and 0.1746 respectively, than our individual ANN model. This is probably because the less accurate results of the non-boosted ANN and SVM models weighed down the performance of the combined model. If we had to choose one model to base our predictions on, it would be the **artificial neural network** because it had the best performance of any model, even the combined one. Otherwise, we would use a kNN or SVM, but only if it was boosted through 10 or 100 iterations.
+
