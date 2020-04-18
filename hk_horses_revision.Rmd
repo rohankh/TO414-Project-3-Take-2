@@ -117,56 +117,141 @@ summary(hk)
 
 --
 ## Data Visualization
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=horse_age, y=place_odds)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+Here we see that younger horses tend to be favored in the pre-race place-odds more than older horses. This makes sense because younger horses are intuitively more in shape than those which are older. The best age seems to be 3 years old, indicating a combination of youth and experience in racing.
 
 ```{r}
 library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=result, y=place_odds)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
 
-type_plot <- ggplot(data = hk, aes(x = lengths_behind, y = result))
+The horses with the lowest odds tend to win on average more races than those with higher odds. This makes sense, but it is reassuring to see the data back up our assumption.
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=draw, y=result)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+While this data may seem unnecessary at first, we see that the draw of the horse (which stall it starts in) is insignificant in determining the winner.
+
+```{r}
+library(ggplot2)
+library(hrbrthemes)
+ggplot(hk, aes(x=behind_sec2, y=result)) + 
+    geom_point(
+        color="black",
+        fill="#69b3a2",
+        shape=22,
+        alpha=0.5,
+        size=6,
+        stroke = 1
+        ) +
+    theme_ipsum()
+```
+
+By the time the race heads into the second stretch, a pack has formed and it becomes clear which horses are in contention to win the race.
+
+```{r}
+ggplot(hk, aes(x = actual_weight)) + stat_density()
+```
+
+This graph just shows the weight distribution of horses. Most are between 120 and 130 kilograms.
+
+```{r}
+ggplot(hk, aes(horse_type, place_odds)) +
+  geom_jitter(aes(color = horse_type, size = 0.5))
+```
+
+Another interesting relationship is between place odds and horse type. Most of the horses are Geldings. And it is logical to see that if the is horse is Gelding the place odds are higher. 
+
+```{r}
+table(hk$horse_country)
+library(maptools)
+    data(wrld_simpl)
+    myCountries = wrld_simpl@data$NAME %in% c("Australia", "United Kingdom", "United States", "Netherlands", "New Zealand","South Africa","Argentina","France","Japan","India","Brazil","Canada","Germany","Spain","Zimbabwe","Italy","Greece")
+    plot(wrld_simpl, col = c(gray(.90), "red")[myCountries+1],main="Countries represented")
+```
+
+Above are all countries represented in Hong Kong horse races.
+
+```{r}
+ggplot(hk, aes(horse_country, place_odds)) +
+  geom_jitter(aes(color = horse_country, size = 0.3))
+```
+
+The horses with the highest place-odds are from Ireland, Australia, and New Zealand, so perhaps these horses should be avoided when betting.
+
+```{r}
+library(ggplot2)
+type_plot <- ggplot(data = hk, aes(x = result, y = lengths_behind))
 type_plot + geom_jitter(alpha = 1)
 ```
 
-```{r}
-plot(x = hk$actual_weight, y = hk$result, main = "Result vs. Weight", xlab = "Weight",  ylab = "Result")
-
-result_weight <- round(sort(tapply(hk$result, hk$actual_weight, mean, na.rm = TRUE), TRUE), 3)
-as.matrix(result_weight)
-```
-
-```{r}
-plot(x = hk$position_sec1, y = hk$result, main = "Result vs. Start", xlab = "Start",  ylab = "Result")
-
-result_start <- round(sort(tapply(hk$result, hk$position_sec1, mean, na.rm = TRUE), TRUE), 3)
-as.matrix(result_start)
-```
+All races tend to be fairly tight between the horses making predicting winners fairly difficult.
 
 ```{r}
 age_won <- table(hk$horse_age, hk$won)
 age_won
 plot(age_won) # 4 year old horses tend to win more on average than other ages
-
 pos1_won <- table(hk$position_sec1, hk$won)
 pos1_won
 plot(pos1_won) # horses in the lead at first tend to win most races
-
 pos2_won <- table(hk$position_sec2, hk$won)
 pos2_won
 plot(pos2_won)
-
 pos3_won <- table(hk$position_sec3, hk$won)
 pos3_won
 plot(pos3_won) # by the third turn, there is a greater than 50% chance that the lead horse wins the race
-
 country_won <- table(hk$horse_country, hk$won)
 country_won
 plot(country_won) # Argentinian and South African horses tend to win a higher percentage of races than other countries
 ```
 
-Above is some visualizations of our data with comments explaining the results. No data graphics were particularly surprising, so we are going to weigh the results of our predictive models more heavily.
+Above is some visualizations of our data with comments explaining the results. After analyzing, we have found the average horse we would like to bet on.
+
+- (1) The horse should be **4 years old** as they have the highest proportional chance of winning.
+- (2) The horse should be of **Argentinian** or **South African** background.
+- (3) The horse should have a tendency to be **leading** heading into the **final stretch**.
+- (4) The horse should have a tendency to get a **quick start out of the gate**.
+- (5) The horse should have **fairly low odds**, but not too low that betting is not worthwhile.
+
 
 --
 ## Logistic Regression Models
-
-### Logistic Regression
 ```{r}
 logistic1 <- glm(won ~ place_odds + position_sec1 + position_sec2 + position_sec3 + distance, data = hk, family = "binomial")
 summary(logistic1)
